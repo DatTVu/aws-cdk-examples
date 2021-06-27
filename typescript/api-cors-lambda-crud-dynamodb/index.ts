@@ -84,12 +84,27 @@ export class ApiLambdaCrudDynamoDBStack extends cdk.Stack {
       }
     );
 
+    const getHistoricalExchangeRateFunction = new lambda.Function(
+      this,
+      "getHistoricalExchangeRateFunction",
+      {
+        code: new lambda.AssetCode("src"),
+        handler: "get-history-rate.handler",
+        runtime: lambda.Runtime.NODEJS_10_X,
+        environment: {
+          TABLE_NAME: dynamoTable.tableName,
+          PRIMARY_KEY: "itemId",
+        },
+      }
+    );
+
     dynamoTable.grantReadWriteData(getAllLambda);
     dynamoTable.grantReadWriteData(getOneLambda);
     dynamoTable.grantReadWriteData(createOne);
     dynamoTable.grantReadWriteData(updateOne);
     dynamoTable.grantReadWriteData(deleteOne);
     dynamoTable.grantReadWriteData(getLatestExchangeRateLambda);
+    dynamoTable.grantReadWriteData(getHistoricalExchangeRateFunction);
 
     const api = new apigateway.RestApi(this, "itemsApi", {
       restApiName: "Items Service",
@@ -117,6 +132,11 @@ export class ApiLambdaCrudDynamoDBStack extends cdk.Stack {
       getLatestExchangeRateLambda
     );
     currency.addMethod("GET", getLatestExchangeRateIntegration);
+
+    const historyRate = currency.addResource("{date}");
+    const getHistoricalExchangeRateIntegration =
+      new apigateway.LambdaIntegration(getHistoricalExchangeRateFunction);
+    historyRate.addMethod("GET", getHistoricalExchangeRateIntegration);
   }
 }
 
