@@ -1,3 +1,5 @@
+import events = require("@aws-cdk/aws-events");
+import targets = require("@aws-cdk/aws-events-targets");
 import apigateway = require("@aws-cdk/aws-apigateway");
 import dynamodb = require("@aws-cdk/aws-dynamodb");
 import lambda = require("@aws-cdk/aws-lambda");
@@ -106,6 +108,14 @@ export class ApiLambdaCrudDynamoDBStack extends cdk.Stack {
     dynamoTable.grantReadWriteData(getLatestExchangeRateLambda);
     dynamoTable.grantReadWriteData(getHistoricalExchangeRateFunction);
 
+    // Run every day at 6PM UTC
+    // See https://docs.aws.amazon.com/lambda/latest/dg/tutorial-scheduled-events-schedule-expressions.html
+    const rule = new events.Rule(this, "Rule", {
+      schedule: events.Schedule.expression("cron(0 22 ? * MON-FRI *)"),
+    });
+
+    rule.addTarget(new targets.LambdaFunction(getLatestExchangeRateLambda));
+
     const api = new apigateway.RestApi(this, "itemsApi", {
       restApiName: "Items Service",
     });
@@ -128,10 +138,10 @@ export class ApiLambdaCrudDynamoDBStack extends cdk.Stack {
     singleItem.addMethod("DELETE", deleteOneIntegration);
 
     const currency = api.root.addResource("exchange");
-    const getLatestExchangeRateIntegration = new apigateway.LambdaIntegration(
-      getLatestExchangeRateLambda
-    );
-    currency.addMethod("GET", getLatestExchangeRateIntegration);
+    // const getLatestExchangeRateIntegration = new apigateway.LambdaIntegration(
+    //   getLatestExchangeRateLambda
+    // );
+    // currency.addMethod("GET", getLatestExchangeRateIntegration);
 
     const historyRate = currency.addResource("{date}");
     const getHistoricalExchangeRateIntegration =
